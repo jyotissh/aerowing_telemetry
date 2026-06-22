@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Aerowing Telemetry</title>
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"
+        />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #0f1117;
+                color: #e8e8e8;
+                min-height: 100vh;
+            }
+            .hdr {
+                padding: 1rem 1.5rem;
+                border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: #161a24;
+            }
+            .hdr h1 {
+                font-size: 15px;
+                font-weight: 500;
+                color: #e8e8e8;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .hdr h1 i {
+                font-size: 18px;
+                color: #378add;
+            }
+            .status {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .status-dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: #e24b4a;
+                transition: background 0.3s;
+            }
+            .status-dot.live {
+                background: #639922;
+            }
+            .status-text {
+                font-size: 12px;
+                color: #888;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 1.5rem;
+            }
+            .section-label {
+                font-size: 11px;
+                font-weight: 500;
+                color: #666;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                margin-bottom: 0.75rem;
+                margin-top: 1.5rem;
+            }
+            .section-label:first-child {
+                margin-top: 0;
+            }
+            .motor-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 12px;
+            }
+            .motor-card {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+            .motor-title {
+                font-size: 13px;
+                font-weight: 500;
+                color: #e8e8e8;
+                margin-bottom: 10px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .motor-title .dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #444;
+            }
+            .motor-title .dot.live {
+                background: #639922;
+            }
+            .metrics {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            .metric {
+                background: #0f1117;
+                border-radius: 8px;
+                padding: 8px 10px;
+            }
+            .metric-label {
+                font-size: 10px;
+                color: #666;
+                margin-bottom: 2px;
+            }
+            .metric-val {
+                font-size: 17px;
+                font-weight: 500;
+                color: #e8e8e8;
+            }
+            .metric-unit {
+                font-size: 10px;
+                color: #666;
+                margin-left: 2px;
+            }
+            .chart-wrap {
+                position: relative;
+                height: 130px;
+            }
+            /* combined per-motor chart legend (RPM/Temp/Current/Airspeed on one graph) */
+            .motor-legend {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 6px;
+                flex-wrap: wrap;
+            }
+            .motor-legend span {
+                font-size: 9px;
+                color: #888;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .motor-legend .swatch {
+                width: 8px;
+                height: 2px;
+                border-radius: 2px;
+            }
+            .load-cards {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .load-card {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+            .load-label {
+                font-size: 11px;
+                color: #666;
+                margin-bottom: 4px;
+            }
+            .load-val {
+                font-size: 24px;
+                font-weight: 500;
+                color: #e8e8e8;
+            }
+            .load-unit {
+                font-size: 11px;
+                color: #666;
+                margin-top: 2px;
+            }
+            .load-chart-wrap {
+                position: relative;
+                height: 150px;
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 12px;
+            }
+            .load-legend {
+                display: flex;
+                gap: 16px;
+                margin-bottom: 8px;
+            }
+            .load-legend span {
+                font-size: 11px;
+                color: #888;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .load-legend .swatch {
+                width: 10px;
+                height: 3px;
+                border-radius: 2px;
+            }
+            .ts {
+                font-size: 11px;
+                color: #444;
+                margin-top: 1rem;
+                text-align: right;
+            }
+
+            /* Calibration */
+            .cal-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .cal-card {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+            .cal-title {
+                font-size: 12px;
+                font-weight: 500;
+                color: #e8e8e8;
+                margin-bottom: 10px;
+            }
+            .cal-btn {
+                display: block;
+                width: 100%;
+                padding: 7px 0;
+                border-radius: 7px;
+                border: none;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                margin-bottom: 6px;
+                transition: opacity 0.15s;
+            }
+            .cal-btn:last-child {
+                margin-bottom: 0;
+            }
+            .btn-tare {
+                background: #1e2a1e;
+                color: #639922;
+                border: 0.5px solid #639922;
+            }
+            .btn-cal {
+                background: #1e2030;
+                color: #378add;
+                border: 0.5px solid #378add;
+            }
+            .btn-tare:hover,
+            .btn-cal:hover {
+                opacity: 0.8;
+            }
+            .btn-tare:active,
+            .btn-cal:active {
+                opacity: 0.6;
+            }
+            .cal-feedback {
+                font-size: 10px;
+                color: #639922;
+                margin-top: 6px;
+                min-height: 14px;
+                transition: opacity 0.3s;
+            }
+
+            /* Current cal */
+            .cur-cal-card {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1rem;
+                margin-bottom: 12px;
+            }
+            .cur-cal-card .cal-title {
+                margin-bottom: 8px;
+            }
+            .cur-cal-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .cur-cal-row .cal-btn {
+                width: auto;
+                padding: 7px 16px;
+                margin-bottom: 0;
+            }
+            .cur-status {
+                font-size: 10px;
+                color: #639922;
+                min-height: 14px;
+            }
+            .cal-input {
+                width: 100%;
+                padding: 6px 10px;
+                border-radius: 7px;
+                border: 0.5px solid rgba(255, 255, 255, 0.12);
+                background: #0f1117;
+                color: #e8e8e8;
+                font-size: 12px;
+                margin-bottom: 6px;
+                outline: none;
+            }
+            .cal-input:focus {
+                border-color: #378add;
+            }
+            .cal-input::placeholder {
+                color: #555;
+            }
+            .cal-row {
+                display: flex;
+                gap: 6px;
+                margin-bottom: 6px;
+            }
+            .cal-row .cal-input {
+                margin-bottom: 0;
+            }
+            .cal-row .cal-btn {
+                width: auto;
+                padding: 6px 12px;
+                margin-bottom: 0;
+                white-space: nowrap;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="hdr">
+            <h1><i class="ti ti-topology-star-3"></i>Aerowing telemetry</h1>
+            <div class="status">
+                <span class="status-dot" id="sdot"></span>
+                <span class="status-text" id="stxt">connecting…</span>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- MOTORS -->
+            <div class="section-label">Motors</div>
+            <div class="motor-grid" id="motor-grid"></div>
+
+            <!-- LOAD CELLS -->
+            <div class="section-label">Load cells</div>
+            <div class="load-cards">
+                <div class="load-card">
+                    <div class="load-label">Load 1</div>
+                    <div class="load-val" id="l1">—</div>
+                    <div class="load-unit">kg</div>
+                </div>
+                <div class="load-card">
+                    <div class="load-label">Load 2</div>
+                    <div class="load-val" id="l2">—</div>
+                    <div class="load-unit">kg</div>
+                </div>
+                <div class="load-card">
+                    <div class="load-label">Load 3</div>
+                    <div class="load-val" id="l3">—</div>
+                    <div class="load-unit">kg</div>
+                </div>
+            </div>
+            <div class="load-chart-wrap">
+                <div class="load-legend">
+                    <span
+                        ><span class="swatch" style="background: #7f77dd"></span
+                        >Load 1</span
+                    >
+                    <span
+                        ><span class="swatch" style="background: #d85a30"></span
+                        >Load 2</span
+                    >
+                    <span
+                        ><span class="swatch" style="background: #1d9e75"></span
+                        >Load 3</span
+                    >
+                </div>
+                <div style="position: relative; height: 110px">
+                    <canvas
+                        id="loadChart"
+                        role="img"
+                        aria-label="Load cell time series"
+                        >Load cell data</canvas
+                    >
+                </div>
+            </div>
+
+            <!-- CALIBRATION -->
+            <div class="section-label">Calibration</div>
+
+            <!-- Current sensor -->
+            <div class="cur-cal-card">
+                <div class="cal-title">Current sensor — zero offset</div>
+                <div class="cur-cal-row" style="margin-bottom: 8px">
+                    <button
+                        class="cal-btn btn-tare"
+                        onclick="zeroCurrentSensor()"
+                    >
+                        Auto-sample zero
+                    </button>
+                    <span class="cur-status" id="cur-status"></span>
+                </div>
+                <div class="cal-row">
+                    <input
+                        class="cal-input"
+                        id="cur-offset-input"
+                        type="number"
+                        placeholder="Manual offset (mV)"
+                        min="0"
+                        max="5000"
+                    />
+                    <button
+                        class="cal-btn btn-cal"
+                        onclick="manualCurrentOffset()"
+                    >
+                        Set offset
+                    </button>
+                </div>
+                <div style="font-size: 10px; color: #555; margin-top: 4px">
+                    Auto-sample: ensure no load connected. Manual: enter raw ADC
+                    mV offset.
+                </div>
+            </div>
+
+            <!-- Load cell calibration -->
+            <div class="cal-grid">
+                <div class="cal-card">
+                    <div class="cal-title">Load cell 1</div>
+                    <button
+                        class="cal-btn btn-tare"
+                        onclick="sendCmd('tare', { cell: 1 })"
+                    >
+                        Tare
+                    </button>
+                    <div class="cal-row">
+                        <input
+                            class="cal-input"
+                            id="weight-input-1"
+                            type="number"
+                            placeholder="Weight (g)"
+                            min="1"
+                        />
+                        <button
+                            class="cal-btn btn-cal"
+                            onclick="calibrateCell(1)"
+                        >
+                            Calibrate
+                        </button>
+                    </div>
+                    <div class="cal-feedback" id="cal-feedback-1"></div>
+                </div>
+                <div class="cal-card">
+                    <div class="cal-title">Load cell 2</div>
+                    <button
+                        class="cal-btn btn-tare"
+                        onclick="sendCmd('tare', { cell: 2 })"
+                    >
+                        Tare
+                    </button>
+                    <div class="cal-row">
+                        <input
+                            class="cal-input"
+                            id="weight-input-2"
+                            type="number"
+                            placeholder="Weight (g)"
+                            min="1"
+                        />
+                        <button
+                            class="cal-btn btn-cal"
+                            onclick="calibrateCell(2)"
+                        >
+                            Calibrate
+                        </button>
+                    </div>
+                    <div class="cal-feedback" id="cal-feedback-2"></div>
+                </div>
+                <div class="cal-card">
+                    <div class="cal-title">Load cell 3</div>
+                    <button
+                        class="cal-btn btn-tare"
+                        onclick="sendCmd('tare', { cell: 3 })"
+                    >
+                        Tare
+                    </button>
+                    <div class="cal-row">
+                        <input
+                            class="cal-input"
+                            id="weight-input-3"
+                            type="number"
+                            placeholder="Weight (g)"
+                            min="1"
+                        />
+                        <button
+                            class="cal-btn btn-cal"
+                            onclick="calibrateCell(3)"
+                        >
+                            Calibrate
+                        </button>
+                    </div>
+                    <div class="cal-feedback" id="cal-feedback-3"></div>
+                </div>
+            </div>
+
+            <div class="ts" id="ts"></div>
+        </div>
+
+        <script>
+            const FB_CONFIG = {
+                databaseURL:
+                    "https://aerowing-telemetry-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+            };
+            const MOTORS = ["MOTOR1", "MOTOR2", "MOTOR3", "MOTOR4"];
+            const MAX_PTS = 80;
+
+            // Per-parameter colors, reused for both metric swatches and charts
+            const PARAM_COLORS = {
+                rpm: { line: "#378add", bg: "rgba(55,138,221,0.07)" },
+                temp: { line: "#d85a30", bg: "rgba(216,90,48,0.07)" },
+                cur: { line: "#1d9e75", bg: "rgba(29,158,117,0.07)" },
+                air: { line: "#7f77dd", bg: "rgba(127,119,221,0.07)" },
+            };
+
+            const motorHistory = {};
+            MOTORS.forEach((m) => {
+                motorHistory[m] = {
+                    rpm: [],
+                    temp: [],
+                    cur: [],
+                    air: [],
+                    labels: [],
+                };
+            });
+            const loadHistory = { l1: [], l2: [], l3: [], labels: [] };
+
+            function pushArr(arr, val, max) {
+                arr.push(val);
+                if (arr.length > max) arr.shift();
+            }
+            function makeLabel() {
+                return new Date().toLocaleTimeString("en-GB");
+            }
+
+            const motorCharts = {};
+
+            function buildMotorCard(id) {
+                const card = document.createElement("div");
+                card.className = "motor-card";
+                card.innerHTML = `
+    <div class="motor-title"><span class="dot" id="${id}-dot"></span>${id}</div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">RPM</div><div class="metric-val" id="${id}-rpm">—</div></div>
+      <div class="metric"><div class="metric-label">Temp</div><div class="metric-val" id="${id}-temp">—<span class="metric-unit">°C</span></div></div>
+      <div class="metric"><div class="metric-label">Current</div><div class="metric-val" id="${id}-cur">—<span class="metric-unit">A</span></div></div>
+      <div class="metric"><div class="metric-label">Airspeed</div><div class="metric-val" id="${id}-air">—<span class="metric-unit">m/s</span></div></div>
+    </div>
+    <div class="motor-legend">
+      <span><span class="swatch" style="background:${PARAM_COLORS.rpm.line}"></span>RPM</span>
+      <span><span class="swatch" style="background:${PARAM_COLORS.temp.line}"></span>Temp</span>
+      <span><span class="swatch" style="background:${PARAM_COLORS.cur.line}"></span>Current</span>
+      <span><span class="swatch" style="background:${PARAM_COLORS.air.line}"></span>Airspeed</span>
+    </div>
+    <div class="chart-wrap"><canvas id="${id}-chart" role="img" aria-label="RPM, temperature, current and airspeed chart for ${id}">Motor parameters</canvas></div>
+  `;
+                return card;
+            }
+
+            function initMotorChart(id) {
+                const ctx = document.getElementById(id + "-chart");
+                motorCharts[id] = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "RPM",
+                                data: [],
+                                borderColor: PARAM_COLORS.rpm.line,
+                                backgroundColor: "transparent",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: "y",
+                            },
+                            {
+                                label: "Temp",
+                                data: [],
+                                borderColor: PARAM_COLORS.temp.line,
+                                backgroundColor: "transparent",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: "y1",
+                            },
+                            {
+                                label: "Current",
+                                data: [],
+                                borderColor: PARAM_COLORS.cur.line,
+                                backgroundColor: "transparent",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: "y2",
+                            },
+                            {
+                                label: "Airspeed",
+                                data: [],
+                                borderColor: PARAM_COLORS.air.line,
+                                backgroundColor: "transparent",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: "y3",
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        interaction: { mode: "index", intersect: false },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) =>
+                                        `${c.dataset.label}: ${c.formattedValue}`,
+                                },
+                            },
+                        },
+                        // each parameter gets its own independent y-axis so RPM,
+                        // °C, A and m/s share one plot without one swamping the rest
+                        scales: {
+                            x: { display: false },
+                            y: { display: false },
+                            y1: { display: false },
+                            y2: { display: false },
+                            y3: { display: false },
+                        },
+                    },
+                });
+            }
+
+            function updateMotorCard(id, data) {
+                const h = motorHistory[id];
+                const label = makeLabel();
+                pushArr(h.rpm, parseFloat(data.rpm), MAX_PTS);
+                pushArr(h.temp, parseFloat(data.temp), MAX_PTS);
+                pushArr(h.cur, parseFloat(data.current), MAX_PTS);
+                pushArr(h.air, parseFloat(data.airspeed), MAX_PTS);
+                pushArr(h.labels, label, MAX_PTS);
+
+                const dot = document.getElementById(id + "-dot");
+                if (dot) dot.classList.add("live");
+                const set = (s, v) => {
+                    const el = document.getElementById(id + "-" + s);
+                    if (el) el.innerHTML = v;
+                };
+                set("rpm", parseFloat(data.rpm).toFixed(0));
+                set(
+                    "temp",
+                    parseFloat(data.temp).toFixed(1) +
+                        '<span class="metric-unit">°C</span>',
+                );
+                set(
+                    "cur",
+                    parseFloat(data.current).toFixed(2) +
+                        '<span class="metric-unit">A</span>',
+                );
+                set(
+                    "air",
+                    parseFloat(data.airspeed).toFixed(1) +
+                        '<span class="metric-unit">m/s</span>',
+                );
+
+                const chart = motorCharts[id];
+                if (chart) {
+                    chart.data.labels = h.labels;
+                    chart.data.datasets[0].data = h.rpm;
+                    chart.data.datasets[1].data = h.temp;
+                    chart.data.datasets[2].data = h.cur;
+                    chart.data.datasets[3].data = h.air;
+                    chart.update("none");
+                }
+            }
+
+            let loadChart;
+            function initLoadChart() {
+                const ctx = document.getElementById("loadChart");
+                loadChart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Load 1",
+                                data: [],
+                                borderColor: "#7F77DD",
+                                backgroundColor: "rgba(127,119,221,0.07)",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: true,
+                                tension: 0.3,
+                            },
+                            {
+                                label: "Load 2",
+                                data: [],
+                                borderColor: "#D85A30",
+                                backgroundColor: "rgba(216,90,48,0.07)",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.3,
+                                borderDash: [4, 3],
+                            },
+                            {
+                                label: "Load 3",
+                                data: [],
+                                borderColor: "#1D9E75",
+                                backgroundColor: "rgba(29,158,117,0.07)",
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.3,
+                                borderDash: [1, 3],
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: false },
+                            y: {
+                                ticks: { font: { size: 9 }, color: "#555" },
+                                grid: { color: "rgba(255,255,255,0.04)" },
+                                border: { color: "rgba(255,255,255,0.06)" },
+                            },
+                        },
+                    },
+                });
+            }
+
+            function updateLoadChart(d) {
+                pushArr(loadHistory.l1, d.load1, MAX_PTS);
+                pushArr(loadHistory.l2, d.load2, MAX_PTS);
+                pushArr(loadHistory.l3, d.load3, MAX_PTS);
+                pushArr(loadHistory.labels, makeLabel(), MAX_PTS);
+                document.getElementById("l1").textContent = parseFloat(
+                    d.load1,
+                ).toFixed(3);
+                document.getElementById("l2").textContent = parseFloat(
+                    d.load2,
+                ).toFixed(3);
+                document.getElementById("l3").textContent = parseFloat(
+                    d.load3,
+                ).toFixed(3);
+                if (loadChart) {
+                    loadChart.data.labels = loadHistory.labels;
+                    loadChart.data.datasets[0].data = loadHistory.l1;
+                    loadChart.data.datasets[1].data = loadHistory.l2;
+                    loadChart.data.datasets[2].data = loadHistory.l3;
+                    loadChart.update("none");
+                }
+            }
+
+            function setStatus(live) {
+                document.getElementById("sdot").className =
+                    "status-dot" + (live ? " live" : "");
+                document.getElementById("stxt").textContent = live
+                    ? "live"
+                    : "disconnected";
+            }
+
+            // Calibration commands
+            let db;
+
+            function sendCmd(type, payload) {
+                if (!db) return;
+                const data = { ...payload, trigger: true, ts: Date.now() };
+                db.ref("commands/" + type).set(data);
+                if (type === "tare") {
+                    showFeedback(payload.cell, "Tare sent…");
+                } else if (type === "calibrate") {
+                    showFeedback(payload.cell, "Calibrate (500g) sent…");
+                }
+            }
+
+            function calibrateCell(cell) {
+                const input = document.getElementById("weight-input-" + cell);
+                const weight = parseFloat(input.value);
+                if (!weight || weight <= 0) {
+                    showFeedback(cell, "Enter a valid weight first");
+                    return;
+                }
+                sendCmd("calibrate", { cell, weight });
+                input.value = "";
+            }
+
+            function manualCurrentOffset() {
+                if (!db) return;
+                const input = document.getElementById("cur-offset-input");
+                const offset = parseFloat(input.value);
+                if (isNaN(offset) || offset < 0) {
+                    document.getElementById("cur-status").textContent =
+                        "Enter a valid offset (mV)";
+                    return;
+                }
+                db.ref("commands/current_zero").set({
+                    trigger: true,
+                    manual: true,
+                    offset,
+                    ts: Date.now(),
+                });
+                const el = document.getElementById("cur-status");
+                el.textContent = `Manual offset ${offset} mV sent…`;
+                setTimeout(() => (el.textContent = ""), 3000);
+                input.value = "";
+            }
+
+            function zeroCurrentSensor() {
+                if (!db) return;
+                db.ref("commands/current_zero").set({
+                    trigger: true,
+                    ts: Date.now(),
+                });
+                const el = document.getElementById("cur-status");
+                el.textContent = "Zero command sent…";
+                setTimeout(() => (el.textContent = ""), 3000);
+            }
+
+            function showFeedback(cell, msg) {
+                const el = document.getElementById("cal-feedback-" + cell);
+                if (!el) return;
+                el.textContent = msg;
+                setTimeout(() => (el.textContent = ""), 3000);
+            }
+
+            // Listen for ack from ESP32
+            function listenAck() {
+                db.ref("ack").on("value", (snap) => {
+                    const d = snap.val();
+                    if (!d) return;
+                    if (d.type === "tare" && d.cell) {
+                        showFeedback(d.cell, `✓ Load ${d.cell} tared`);
+                    } else if (d.type === "calibrate" && d.cell) {
+                        showFeedback(
+                            d.cell,
+                            `✓ Load ${d.cell} cal factor: ${d.factor}`,
+                        );
+                    } else if (d.type === "current_zero") {
+                        const el = document.getElementById("cur-status");
+                        if (el) {
+                            el.textContent = `✓ Zero offset set: ${d.offset} mV`;
+                            setTimeout(() => (el.textContent = ""), 4000);
+                        }
+                    }
+                });
+            }
+
+            // Init
+            const grid = document.getElementById("motor-grid");
+            MOTORS.forEach((id) => {
+                grid.appendChild(buildMotorCard(id));
+            });
+            MOTORS.forEach((id) => initMotorChart(id));
+            initLoadChart();
+
+            const app = firebase.initializeApp(FB_CONFIG);
+            db = firebase.database(app);
+
+            MOTORS.forEach((id) => {
+                db.ref("live/motors/" + id).on("value", (snap) => {
+                    const d = snap.val();
+                    if (!d) return;
+                    updateMotorCard(id, d);
+                    document.getElementById("ts").textContent =
+                        "Last update: " + new Date().toLocaleTimeString();
+                });
+            });
+
+            db.ref("live/loadcells").on("value", (snap) => {
+                const d = snap.val();
+                if (!d) return;
+                updateLoadChart(d);
+            });
+
+            db.ref(".info/connected").on("value", (snap) =>
+                setStatus(!!snap.val()),
+            );
+            listenAck();
+        </script>
+    </body>
+</html>
