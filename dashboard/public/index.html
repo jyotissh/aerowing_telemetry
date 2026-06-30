@@ -334,6 +334,124 @@
                 margin-bottom: 0;
                 white-space: nowrap;
             }
+
+            /* ── Motor Control Panel ───────────────────────────────────────── */
+            .ctrl-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .ctrl-card {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+            .ctrl-title {
+                font-size: 12px;
+                font-weight: 500;
+                color: #e8e8e8;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .ctrl-title .dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #e24b4a;
+            }
+            .ctrl-title .dot.armed {
+                background: #639922;
+            }
+            .throttle-val {
+                font-size: 22px;
+                font-weight: 500;
+                color: #e8e8e8;
+                margin-bottom: 8px;
+                font-variant-numeric: tabular-nums;
+            }
+            .throttle-val span {
+                font-size: 11px;
+                color: #666;
+                margin-left: 2px;
+            }
+            .throttle-bar {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 100%;
+                height: 4px;
+                border-radius: 4px;
+                background: #0f1117;
+                outline: none;
+                cursor: pointer;
+                accent-color: #378add;
+                margin-bottom: 6px;
+            }
+            .throttle-bar::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: #378add;
+                cursor: pointer;
+                border: none;
+            }
+            .throttle-pct {
+                font-size: 10px;
+                color: #555;
+            }
+            .ctrl-actions {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .btn-send {
+                background: #1e2a38;
+                color: #378add;
+                border: 0.5px solid #378add;
+                border-radius: 7px;
+                padding: 8px 20px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: opacity 0.15s;
+            }
+            .btn-send:hover {
+                opacity: 0.8;
+            }
+            .btn-send:active {
+                opacity: 0.6;
+            }
+            .btn-disarm {
+                background: #2a1e1e;
+                color: #e24b4a;
+                border: 0.5px solid #e24b4a;
+                border-radius: 7px;
+                padding: 8px 20px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: opacity 0.15s;
+            }
+            .btn-disarm:hover {
+                opacity: 0.8;
+            }
+            .btn-disarm:active {
+                opacity: 0.6;
+            }
+            .ctrl-status {
+                font-size: 10px;
+                color: #639922;
+                min-height: 14px;
+            }
         </style>
     </head>
     <body>
@@ -392,6 +510,21 @@
                         >Load cell data</canvas
                     >
                 </div>
+            </div>
+
+            <!-- MOTOR CONTROL -->
+            <div class="section-label">Motor Control</div>
+            <div class="ctrl-grid" id="ctrl-grid">
+                <!-- built by JS -->
+            </div>
+            <div class="ctrl-actions">
+                <button class="btn-send" onclick="sendThrottle()">
+                    Send throttle
+                </button>
+                <button class="btn-disarm" onclick="disarmAll()">
+                    Disarm all
+                </button>
+                <span class="ctrl-status" id="ctrl-status"></span>
             </div>
 
             <!-- CALIBRATION -->
@@ -786,6 +919,98 @@
                     : "disconnected";
             }
 
+            // ── Motor Control Panel ──────────────────────────────────────────
+            const THROTTLE_MIN = 1100;
+            const THROTTLE_MAX = 1940;
+
+            function throttlePct(val) {
+                return (
+                    ((val - THROTTLE_MIN) / (THROTTLE_MAX - THROTTLE_MIN)) *
+                    100
+                ).toFixed(0);
+            }
+
+            function buildCtrlCard(id, index) {
+                const card = document.createElement("div");
+                card.className = "ctrl-card";
+                card.innerHTML = `
+                    <div class="ctrl-title">
+                        <span class="dot" id="ctrl-dot-${index}"></span>${id}
+                    </div>
+                    <div class="throttle-val" id="ctrl-val-${index}">1100<span>µs</span></div>
+                    <input
+                        class="throttle-bar"
+                        id="ctrl-slider-${index}"
+                        type="range"
+                        min="${THROTTLE_MIN}"
+                        max="${THROTTLE_MAX}"
+                        step="10"
+                        value="${THROTTLE_MIN}"
+                        oninput="onSlider(${index})"
+                    />
+                    <div class="throttle-pct" id="ctrl-pct-${index}">0 % throttle</div>
+                `;
+                return card;
+            }
+
+            function onSlider(index) {
+                const slider = document.getElementById("ctrl-slider-" + index);
+                const val = parseInt(slider.value);
+                const valEl = document.getElementById("ctrl-val-" + index);
+                const pctEl = document.getElementById("ctrl-pct-" + index);
+                valEl.innerHTML = `${val}<span>µs</span>`;
+                pctEl.textContent = throttlePct(val) + " % throttle";
+            }
+
+            function sendThrottle() {
+                if (!db) return;
+                const vals = MOTORS.map((_, i) => {
+                    const slider = document.getElementById("ctrl-slider-" + i);
+                    return slider ? parseInt(slider.value) : THROTTLE_MIN;
+                });
+                db.ref("commands/throttle").set({
+                    m1: vals[0],
+                    m2: vals[1],
+                    m3: vals[2],
+                    m4: vals[3],
+                    trigger: true,
+                    ts: Date.now(),
+                });
+                // Mark dots as armed
+                MOTORS.forEach((_, i) => {
+                    const dot = document.getElementById("ctrl-dot-" + i);
+                    if (dot) dot.classList.add("armed");
+                });
+                const el = document.getElementById("ctrl-status");
+                el.textContent = `Sent → M1:${vals[0]} M2:${vals[1]} M3:${vals[2]} M4:${vals[3]}`;
+                setTimeout(() => (el.textContent = ""), 3000);
+            }
+
+            function disarmAll() {
+                if (!db) return;
+                db.ref("commands/throttle").set({
+                    m1: THROTTLE_MIN,
+                    m2: THROTTLE_MIN,
+                    m3: THROTTLE_MIN,
+                    m4: THROTTLE_MIN,
+                    trigger: true,
+                    ts: Date.now(),
+                });
+                // Reset sliders
+                MOTORS.forEach((_, i) => {
+                    const slider = document.getElementById("ctrl-slider-" + i);
+                    if (slider) {
+                        slider.value = THROTTLE_MIN;
+                        onSlider(i);
+                    }
+                    const dot = document.getElementById("ctrl-dot-" + i);
+                    if (dot) dot.classList.remove("armed");
+                });
+                const el = document.getElementById("ctrl-status");
+                el.textContent = "All motors disarmed (1100 µs)";
+                setTimeout(() => (el.textContent = ""), 3000);
+            }
+
             // Calibration commands
             let db;
 
@@ -874,8 +1099,10 @@
 
             // Init
             const grid = document.getElementById("motor-grid");
-            MOTORS.forEach((id) => {
+            const ctrlGrid = document.getElementById("ctrl-grid");
+            MOTORS.forEach((id, i) => {
                 grid.appendChild(buildMotorCard(id));
+                ctrlGrid.appendChild(buildCtrlCard(id, i));
             });
             MOTORS.forEach((id) => initMotorChart(id));
             initLoadChart();
