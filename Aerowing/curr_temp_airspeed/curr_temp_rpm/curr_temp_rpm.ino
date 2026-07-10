@@ -8,22 +8,22 @@
 
 
 // macros 
-#define RT0   44.34f // 44.34 for seed xiao ; 150 for c6 supermini
+#define RT0   15.0f // 44.34 for seed xiao ; 150 for c6 supermini
 #define B     3977.0f 
 #define R     10.0f
-#define VCC_GPIO6  3300.0f //mV ; 3300 for seed xiao; 5000 for c6 supermini
+#define VCC_GPIO6  3300.0f //mV 
 #define ADC_RES 4095.0f
 #define rho 1.146f
 #define one_psi 6894.76f  // in P
 
 // user config
 const char* SSID = "CMF";
-const char* PASS = "Hippo123$";
-const char* HOST_IP = "10.151.156.148"; 
+const char* PASS = "Hippo123$"; 
+const char* HOST_IP = "10.198.43.148"; 
 const int HOST_PORT = 80;
 
 // change this for each module: MOTOR1, MOTOR2, MOTOR3, MOTOR4
-const char* DEVICE_ID = "MOTOR2"; 
+const char* DEVICE_ID = "MOTOR1"; 
 
 // WiFi objects
 WiFiClient client;
@@ -65,7 +65,7 @@ static float current = 0;
 
 // rpm sensor
 
-const int IR_PIN = 1;
+const int IR_PIN = 19;
 static uint32_t pulse_count = 0;
 static float rpm;
 const int pulsesPerRev = 2;

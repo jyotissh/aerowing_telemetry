@@ -12,6 +12,7 @@ String serialBuf = "";
 void setup() {
   // Match the motor sub-server ESP8266 baud rate
   Serial.begin(115200);
+  Serial1.begin(115200);
   Servo_init();
   delay(3000);
   Serial.println("Armed. Waiting for THROTTLE,m1,m2,m3,m4 commands.");
@@ -19,8 +20,8 @@ void setup() {
 
 void loop() {
   // Accumulate characters until newline
-  while (Serial.available()) {
-    char c = (char)Serial.read();
+  while (Serial1.available()) {
+    char c = (char)Serial1.read();
     if (c == '\n') {
       serialBuf.trim();
       if (serialBuf.startsWith("THROTTLE,")) {

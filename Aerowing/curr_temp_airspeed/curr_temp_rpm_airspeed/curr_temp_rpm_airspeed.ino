@@ -11,7 +11,7 @@
 #define RT0   13.14f
 #define B     3977.0f
 #define R     11.0f
-#define VCC_GPIO6  5000.0f //mV
+#define VCC_GPIO6  3300.0f //mV
 #define ADC_RES 4095.0f
 #define rho 1.146f
 #define one_psi 6894.76f  // in P
@@ -19,11 +19,11 @@
 // user config
 const char* SSID = "CMF";
 const char* PASS = "Hippo123$";
-const char* HOST_IP = "10.151.156.148"; 
+const char* HOST_IP = "10.198.43.148"; 
 const int HOST_PORT = 80;
 
 // change this for each module: MOTOR1, MOTOR2, MOTOR3, MOTOR4
-const char* DEVICE_ID = "MOTOR4"; 
+const char* DEVICE_ID = "MOTOR3"; 
 
 // WiFi objects
 WiFiClient client;

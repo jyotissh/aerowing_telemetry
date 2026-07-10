@@ -3,16 +3,16 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 
-#define calibration_factor -4800.0
-#define calibration_factor_2 -4800.0
-#define calibration_factor_3 -4800.0
+#define calibration_factor -12384.0
+#define calibration_factor_2 -12384.0
+#define calibration_factor_3 -12384.0
 
 
 #define DOUT  4
-#define DOUT2 6
+#define DOUT2 2
 #define DOUT3 7
 
-#define CLK   5
+#define CLK   18
 
 HX711 scale;
 HX711 scale2;
