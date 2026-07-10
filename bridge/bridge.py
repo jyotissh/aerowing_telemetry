@@ -23,7 +23,7 @@ firebase_admin.initialize_app(
 # Serial Port Configuration
 # -----------------------------
 
-SERIAL_PORT = "COM10"   # Windows example
+SERIAL_PORT = "COM6"  # Windows example
 # SERIAL_PORT = "/dev/ttyUSB0"  # Linux example
 
 BAUD_RATE = 921600  # Must match esp8266_tcp_server Serial.begin()
@@ -35,6 +35,7 @@ print(f"Listening on {SERIAL_PORT} @ {BAUD_RATE} baud...")
 # -----------------------------
 # Telemetry Parser  (uplink)
 # -----------------------------
+
 
 def parse_and_push(line: str) -> None:
     """Parse a telemetry line and push it to Firebase."""
@@ -49,9 +50,9 @@ def parse_and_push(line: str) -> None:
         if parts[0] in ["MOTOR1", "MOTOR2", "MOTOR3", "MOTOR4"] and len(parts) == 5:
             motor = parts[0]
             data = {
-                "rpm":      float(parts[1]),
-                "temp":     float(parts[2]),
-                "current":  float(parts[3]),
+                "rpm": float(parts[1]),
+                "temp": float(parts[2]),
+                "current": float(parts[3]),
                 "airspeed": float(parts[4]),
                 "timestamp": timestamp,
             }
@@ -83,6 +84,7 @@ def parse_and_push(line: str) -> None:
 # -----------------------------
 # Throttle Command  (downlink)
 # -----------------------------
+
 
 def on_throttle_command(event) -> None:
     """

@@ -63,6 +63,34 @@
                 font-size: 12px;
                 color: #888;
             }
+            .hdr-actions {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+            .btn-export {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: #1e2a38;
+                color: #378add;
+                border: 0.5px solid #378add;
+                border-radius: 7px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: opacity 0.15s;
+            }
+            .btn-export:hover {
+                opacity: 0.8;
+            }
+            .btn-export:active {
+                opacity: 0.6;
+            }
+            .btn-export i {
+                font-size: 13px;
+            }
             .container {
                 max-width: 1200px;
                 margin: 0 auto;
@@ -457,9 +485,14 @@
     <body>
         <div class="hdr">
             <h1><i class="ti ti-topology-star-3"></i>Aerowing telemetry</h1>
-            <div class="status">
-                <span class="status-dot" id="sdot"></span>
-                <span class="status-text" id="stxt">connecting…</span>
+            <div class="hdr-actions">
+                <button class="btn-export" onclick="downloadCSV()">
+                    <i class="ti ti-download"></i>Download CSV
+                </button>
+                <div class="status">
+                    <span class="status-dot" id="sdot"></span>
+                    <span class="status-text" id="stxt">connecting…</span>
+                </div>
             </div>
         </div>
 
@@ -682,6 +715,78 @@
                 return new Date().toLocaleTimeString("en-GB");
             }
 
+            // ── CSV export log ────────────────────────────────────────────────
+            // Every time any reading (motor or load cell) comes in, we snapshot
+            // the latest known value of ALL fields against a timestamp. This
+            // gives one clean, timestamp-indexed table for the CSV export,
+            // rather than several independently-timed arrays.
+            const MAX_LOG = 5000; // cap so memory doesn't grow unbounded on long sessions
+            const csvLog = [];
+            const lastKnown = { motors: {}, loads: {} };
+            MOTORS.forEach((m) => {
+                lastKnown.motors[m] = {
+                    rpm: "",
+                    temp: "",
+                    current: "",
+                    airspeed: "",
+                };
+            });
+            lastKnown.loads = { load1: "", load2: "", load3: "" };
+
+            function recordSnapshot() {
+                const now = new Date();
+                const row = { iso: now.toISOString(), epoch_ms: now.getTime() };
+                MOTORS.forEach((m) => {
+                    row[m + "_rpm"] = lastKnown.motors[m].rpm;
+                    row[m + "_temp_C"] = lastKnown.motors[m].temp;
+                    row[m + "_current_A"] = lastKnown.motors[m].current;
+                    row[m + "_airspeed_ms"] = lastKnown.motors[m].airspeed;
+                });
+                row.load1_kg = lastKnown.loads.load1;
+                row.load2_kg = lastKnown.loads.load2;
+                row.load3_kg = lastKnown.loads.load3;
+                csvLog.push(row);
+                if (csvLog.length > MAX_LOG) csvLog.shift();
+            }
+
+            function csvEscape(val) {
+                const s = val === undefined || val === null ? "" : String(val);
+                if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+                return s;
+            }
+
+            function downloadCSV() {
+                if (csvLog.length === 0) {
+                    const el = document.getElementById("stxt");
+                    const prev = el.textContent;
+                    el.textContent = "no data logged yet";
+                    setTimeout(() => (el.textContent = prev), 2000);
+                    return;
+                }
+                const headers = Object.keys(csvLog[0]);
+                const lines = [headers.join(",")];
+                csvLog.forEach((row) => {
+                    lines.push(
+                        headers.map((h) => csvEscape(row[h])).join(","),
+                    );
+                });
+                const csvContent = lines.join("\n");
+                const blob = new Blob([csvContent], {
+                    type: "text/csv;charset=utf-8;",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                const stamp = new Date()
+                    .toISOString()
+                    .replace(/[:.]/g, "-");
+                a.href = url;
+                a.download = `aerowing_telemetry_${stamp}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
             const motorCharts = {};
 
             function buildMotorCard(id) {
@@ -787,6 +892,14 @@
             }
 
             function updateMotorCard(id, data) {
+                lastKnown.motors[id] = {
+                    rpm: parseFloat(data.rpm),
+                    temp: parseFloat(data.temp),
+                    current: parseFloat(data.current),
+                    airspeed: parseFloat(data.airspeed),
+                };
+                recordSnapshot();
+
                 const h = motorHistory[id];
                 const label = makeLabel();
                 pushArr(h.rpm, parseFloat(data.rpm), MAX_PTS);
@@ -889,6 +1002,13 @@
             }
 
             function updateLoadChart(d) {
+                lastKnown.loads = {
+                    load1: d.load1,
+                    load2: d.load2,
+                    load3: d.load3,
+                };
+                recordSnapshot();
+
                 pushArr(loadHistory.l1, d.load1, MAX_PTS);
                 pushArr(loadHistory.l2, d.load2, MAX_PTS);
                 pushArr(loadHistory.l3, d.load3, MAX_PTS);
