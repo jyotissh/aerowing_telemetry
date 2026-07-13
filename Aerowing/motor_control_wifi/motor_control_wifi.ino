@@ -3,7 +3,7 @@
 const char* ssid     = "CMF";
 const char* password = "Hippo123$";
 
-const char* mainServerIP = "10.159.73.148";
+const char* mainServerIP = "10.198.43.148";
 const uint16_t mainServerPort = 80;
 
 WiFiClient client;
@@ -77,17 +77,9 @@ void loop() {
 
     if (c == '\n') {
       tcpBuf.trim();
+      Serial1.println(tcpBuf); 
+      Serial.println(tcpBuf); 
 
-      if (tcpBuf.startsWith("THROTTLE,")) {
-        String values = tcpBuf.substring(9);
-
-        // Send to Nano Every
-        Serial1.println(values);
-
-        // Debug output on PC
-        
-        Serial.println(values);
-      }
 
       tcpBuf = "";
     }

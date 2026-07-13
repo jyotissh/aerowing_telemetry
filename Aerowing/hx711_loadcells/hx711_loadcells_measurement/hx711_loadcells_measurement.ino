@@ -22,7 +22,7 @@ WiFiClient client;
 
 const char* SSID = "CMF";
 const char* PASS = "Hippo123$";
-const char* HOST_IP = "10.151.156.21"; // Default IP of Windows Hotspot (Check via 'ipconfig') use localip
+const char* HOST_IP = "10.198.43.148"; // Default IP of Windows Hotspot (Check via 'ipconfig') use localip
 const int HOST_PORT = 80;
 
 void WiFi_init();

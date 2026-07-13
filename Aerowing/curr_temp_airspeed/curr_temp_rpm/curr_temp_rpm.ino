@@ -23,7 +23,7 @@ const char* HOST_IP = "10.198.43.148";
 const int HOST_PORT = 80;
 
 // change this for each module: MOTOR1, MOTOR2, MOTOR3, MOTOR4
-const char* DEVICE_ID = "MOTOR1"; 
+const char* DEVICE_ID = "MOTOR4"; 
 
 // WiFi objects
 WiFiClient client;
