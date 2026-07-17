@@ -3,16 +3,15 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
 #include "MS4525DO.h"
 
 
 // macros 
-#define RT0   15.0f // 44.34 for seed xiao ; 150 for c6 supermini
+#define RT0   13.34f 
 #define B     3977.0f 
 #define R     10.0f
-#define VCC_GPIO6  3300.0f //mV 
 #define ADC_RES 4095.0f
+#define VCC_GPIO6  3300.0f //mV 
 #define rho 1.146f
 #define one_psi 6894.76f  // in P
 
@@ -56,16 +55,16 @@ void checkCurrentZero();
 
 // current sensor
 
-const int avgSamples = 20;
-const int analogInPin = 0;
-const float SUPPLY_VOLTAGE = 5000.0;
-float sensitivity = 40.0 * (SUPPLY_VOLTAGE / 5000.0); // 50A module example
-int zeroCurrentVoltage = 105; 
+const int avgSamples = 10;
+const int analogInPin = 0; // 3 for esp32-c3; 0 for c6 supermini
+const float SUPPLY_VOLTAGE = 3300;
+float sensitivity = 13.2; // 50A module example
+int zeroCurrentVoltage = 0; 
 static float current = 0;
 
 // rpm sensor
 
-const int IR_PIN = 19;
+const int IR_PIN = 19; // 6 for esp32-c3; 19 for c6 supermini
 static uint32_t pulse_count = 0;
 static float rpm;
 const int pulsesPerRev = 2;
@@ -91,7 +90,7 @@ void setup() {
   // sensor init
   current_sensor_init();
   rpm_sensor_init();
-
+  temp_sensor_init();
 
 }
 
@@ -117,7 +116,6 @@ void loop() {
 
   static unsigned long lastSend = 0;
   if (millis() - lastSend >= 50) {
-    noInterrupts();
     lastSend = millis();
 
     String packet = String(DEVICE_ID) + "," + String(rpm, 1) + "," +
@@ -128,22 +126,23 @@ void loop() {
     size_t bytesSent = client.println(packet);
     if (bytesSent == 0) Serial.println("Send failed");
     client.flush();
-    interrupts();
   }
 
 
   // Firebase command poll every 3s 
-  static unsigned long lastCheck = 0;
+  // static unsigned long lastCheck = 0;
+  /*
   if (millis() - lastCheck > 3000) {
     lastCheck = millis();
     checkCurrentZero();
-  }
+  }*/
   
   
 }
 
 void WiFi_init(){
   WiFi.begin(SSID, PASS);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm); // only for esp32-c3
   Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
@@ -166,6 +165,7 @@ void connectToServer() {
 }
 
 const char* FB_URL = "https://aerowing-telemetry-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app";
+
 
 void checkCurrentZero() {
   String url = String(FB_URL) + "/commands/current_zero.json";
@@ -204,7 +204,14 @@ void IRAM_ATTR isr_pulsecount() {
 }
 
 void current_sensor_init(void){
-  pinMode(analogInPin, INPUT);
+    pinMode(analogInPin, INPUT);
+    long sum = 0;
+    for (int i = 0; i < 10; i++) {
+      sum += analogRead(analogInPin);
+      delay(1);
+    }
+    zeroCurrentVoltage = (sum/10.0);
+
 }
 
 void rpm_sensor_init(void){
@@ -214,22 +221,23 @@ void rpm_sensor_init(void){
   
 }
 
+void temp_sensor_init(void){
+ 
+}
+
 void current_sensor(void){
 
   long total_mV = 0;
   
   for(int i=0; i<avgSamples; i++) total_mV += analogReadMilliVolts(analogInPin);
-  float avg_mV = total_mV / avgSamples;
-  if (avg_mV > 100) {
+  float avg_mV = (total_mV/avgSamples);
+  Serial.println("avg_mV (no-load): " + String(avg_mV));
+  current = (avg_mV-zeroCurrentVoltage) / sensitivity;
+  /*if (avg_mV > 100) {
     current = (avg_mV-zeroCurrentVoltage) / sensitivity;
-  }
-  
-  if (current < 0 ){
-    current = 0;
-  }
-  
-
- // Serial.println("AvgCurrent: " + String(current));
+  }*/
+  // Serial.println("AvgCurrent: " + String(current));   
+ 
   
   
 }
@@ -251,8 +259,10 @@ void rpm_sensor(void){
 }
 
 void temp_sensor(void){
-  float VRT = analogReadMilliVolts(2);
+  float VRT = analogRead(6); // 4 for esp32-c3(seed-xiao); 6 for c6-supermini 
+  VRT = (VRT/ ADC_RES) * VCC_GPIO6; 
   float VR  = VCC_GPIO6 - VRT;                 
+  //Serial.println("VRT_raw_mV: " + String(VRT));   
 
   if (VR == 0.0f) {
     Serial.println("Error: VR=0, check wiring");

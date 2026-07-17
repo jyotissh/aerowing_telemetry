@@ -480,6 +480,36 @@
                 color: #639922;
                 min-height: 14px;
             }
+
+            /* ── Client Slots ──────────────────────────────────────────────── */
+            .slot-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 8px;
+                margin-bottom: 1.5rem;
+            }
+            .slot-card {
+                background: #161a24;
+                border: 0.5px solid rgba(255, 255, 255, 0.08);
+                border-radius: 10px;
+                padding: 0.75rem;
+                text-align: center;
+            }
+            .slot-card .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #e24b4a;
+                margin: 0 auto 6px;
+                transition: background 0.3s;
+            }
+            .slot-card .dot.live {
+                background: #639922;
+            }
+            .slot-card .slot-label {
+                font-size: 11px;
+                color: #666;
+            }
         </style>
     </head>
     <body>
@@ -497,6 +527,10 @@
         </div>
 
         <div class="container">
+            <!-- CLIENT SLOTS -->
+            <div class="section-label">Client Slots</div>
+            <div class="slot-grid" id="slot-grid"></div>
+
             <!-- MOTORS -->
             <div class="section-label">Motors</div>
             <div class="motor-grid" id="motor-grid"></div>
@@ -739,7 +773,7 @@
                 MOTORS.forEach((m) => {
                     row[m + "_rpm"] = lastKnown.motors[m].rpm;
                     row[m + "_temp_C"] = lastKnown.motors[m].temp;
-                    row[m + "_current_A"] = lastKnown.motors[m].current;
+                    row[m + "_current_mA"] = lastKnown.motors[m].current;
                     row[m + "_airspeed_ms"] = lastKnown.motors[m].airspeed;
                 });
                 row.load1_kg = lastKnown.loads.load1;
@@ -797,7 +831,7 @@
     <div class="metrics">
       <div class="metric"><div class="metric-label">RPM</div><div class="metric-val" id="${id}-rpm">—</div></div>
       <div class="metric"><div class="metric-label">Temp</div><div class="metric-val" id="${id}-temp">—<span class="metric-unit">°C</span></div></div>
-      <div class="metric"><div class="metric-label">Current</div><div class="metric-val" id="${id}-cur">—<span class="metric-unit">A</span></div></div>
+      <div class="metric"><div class="metric-label">Current</div><div class="metric-val" id="${id}-cur">—<span class="metric-unit">mA</span></div></div>
       <div class="metric"><div class="metric-label">Airspeed</div><div class="metric-val" id="${id}-air">—<span class="metric-unit">m/s</span></div></div>
     </div>
     <div class="motor-legend">
@@ -923,7 +957,7 @@
                 set(
                     "cur",
                     parseFloat(data.current).toFixed(2) +
-                        '<span class="metric-unit">A</span>',
+                        '<span class="metric-unit">mA</span>',
                 );
                 set(
                     "air",
@@ -1220,6 +1254,13 @@
             // Init
             const grid = document.getElementById("motor-grid");
             const ctrlGrid = document.getElementById("ctrl-grid");
+            const slotGrid = document.getElementById("slot-grid");
+            for (let i = 0; i < 7; i++) {
+                const el = document.createElement("div");
+                el.className = "slot-card";
+                el.innerHTML = `<div class="dot" id="slot-dot-${i}"></div><div class="slot-label">Slot ${i}</div>`;
+                slotGrid.appendChild(el);
+            }
             MOTORS.forEach((id, i) => {
                 grid.appendChild(buildMotorCard(id));
                 ctrlGrid.appendChild(buildCtrlCard(id, i));
@@ -1249,6 +1290,14 @@
             db.ref(".info/connected").on("value", (snap) =>
                 setStatus(!!snap.val()),
             );
+            db.ref("live/clients").on("value", (snap) => {
+                const d = snap.val();
+                if (!d || !d.slots) return;
+                d.slots.forEach((connected, i) => {
+                    const dot = document.getElementById("slot-dot-" + i);
+                    if (dot) dot.classList.toggle("live", connected === 1);
+                });
+            });
             listenAck();
         </script>
     </body>

@@ -26,7 +26,7 @@ const int avgSamples = 20;
 int sensorValue = 0;
 
 float sensitivity = 1000.0 / 40.0;  // 25 mA/mV
-float Vref = 1329.09;   // 3.3V / 2 = 1.65V = 1650 mV
+float Vref = 1650;   // 3.3V / 2 = 1.65V = 1650 mV
 
 void setup() {
   // initialize serial communications at 9600 bps:

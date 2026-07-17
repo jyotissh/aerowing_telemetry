@@ -1,3 +1,5 @@
+import queue
+import threading
 from datetime import datetime, timezone
 
 import firebase_admin
@@ -125,6 +127,25 @@ def on_throttle_command(event) -> None:
 db.reference("commands/throttle").listen(on_throttle_command)
 
 # -----------------------------
+# Async Firebase Worker
+# -----------------------------
+# Serial reads must never block on network I/O. The main loop hands each
+# line off to this queue instantly; a background thread does the actual
+# Firebase pushes.
+
+telemetry_queue = queue.Queue()
+
+
+def firebase_worker() -> None:
+    while True:
+        line = telemetry_queue.get()
+        parse_and_push(line)
+        telemetry_queue.task_done()
+
+
+threading.Thread(target=firebase_worker, daemon=True).start()
+
+# -----------------------------
 # Main Loop  (uplink Serial read)
 # -----------------------------
 
@@ -134,7 +155,7 @@ try:
         if not line:
             continue
         print("RX:", line)
-        parse_and_push(line)
+        telemetry_queue.put(line)  # hand off instantly, never blocks on network
 
 except KeyboardInterrupt:
     print("\nStopping bridge...")

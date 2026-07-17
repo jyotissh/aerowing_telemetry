@@ -60,27 +60,29 @@ void loop() {
     delay(1000);
   }
 
-  Serial.println(String(scale.get_units(2), 3)+","+String(scale2.get_units(2), 3)+","+String(scale3.get_units(2), 3));
-  //Serial.println("Hello");
-  String packet = "Load," + String(scale.get_units(2), 3)+","+String(scale2.get_units(2), 3)+","+String(scale3.get_units(2), 3);
+  static unsigned long lastSend = 0;
+  if (millis() - lastSend >= 50) {
+    lastSend = millis();
 
+    float w1 = scale.get_units(2);
+    float w2 = scale2.get_units(2);
+    float w3 = scale3.get_units(2);
 
-  size_t bytesSent = client.println(packet);
-  if (bytesSent == 0) {
-    Serial.println("Send failed");
+    String packet = "Load," + String(w1, 3) + "," + String(w2, 3) + "," + String(w3, 3);
+
+    Serial.println(packet);
+    size_t bytesSent = client.println(packet);
+    if (bytesSent == 0) {
+      Serial.println("Send failed");
+    }
+    client.flush();
   }
-
-  client.flush();
 
   static unsigned long lastCheck = 0;
   if (millis() - lastCheck > 3000) {
     lastCheck = millis();
     checkCommands();
   }
-
-
-  delay(50);
-
 }
 
 void sendAck(String type, int cell, float factor) {
