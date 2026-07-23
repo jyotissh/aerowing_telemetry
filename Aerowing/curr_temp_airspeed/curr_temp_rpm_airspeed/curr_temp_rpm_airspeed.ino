@@ -3,7 +3,6 @@
   #include <WiFi.h>
   #include <HTTPClient.h>
   #include <ArduinoJson.h>
-  #include <ACS7xx_Allegro.h>
 
   #include "MS4525DO.h"
 
@@ -20,7 +19,7 @@
   // user config
   const char* SSID = "CMF";
   const char* PASS = "Hippo123$";
-  const char* HOST_IP = "10.198.43.148"; 
+  const char* HOST_IP = "10.204.206.148"; 
   const int HOST_PORT = 80;
 
   // change this for each module: MOTOR1, MOTOR2, MOTOR3, MOTOR4

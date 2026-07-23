@@ -18,7 +18,7 @@
 // user config
 const char* SSID = "CMF";
 const char* PASS = "Hippo123$"; 
-const char* HOST_IP = "10.198.43.148"; 
+const char* HOST_IP = "10.204.206.148"; 
 const int HOST_PORT = 80;
 
 // change this for each module: MOTOR1, MOTOR2, MOTOR3, MOTOR4
@@ -56,7 +56,7 @@ void checkCurrentZero();
 // current sensor
 
 const int avgSamples = 10;
-const int analogInPin = 0; // 3 for esp32-c3; 0 for c6 supermini
+const int analogInPin = 0; // 
 const float SUPPLY_VOLTAGE = 3300;
 float sensitivity = 13.2; // 50A module example
 int zeroCurrentVoltage = 0; 
@@ -259,7 +259,7 @@ void rpm_sensor(void){
 }
 
 void temp_sensor(void){
-  float VRT = analogRead(6); // 4 for esp32-c3(seed-xiao); 6 for c6-supermini 
+  float VRT = analogRead(6); // 5 for c6-zero; 6 for c6-supermini 
   VRT = (VRT/ ADC_RES) * VCC_GPIO6; 
   float VR  = VCC_GPIO6 - VRT;                 
   //Serial.println("VRT_raw_mV: " + String(VRT));   
