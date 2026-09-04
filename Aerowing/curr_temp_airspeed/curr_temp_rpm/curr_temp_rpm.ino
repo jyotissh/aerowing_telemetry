@@ -207,7 +207,7 @@ void current_sensor_init(void){
     pinMode(analogInPin, INPUT);
     long sum = 0;
     for (int i = 0; i < 10; i++) {
-      sum += analogRead(analogInPin);
+      sum += analogReadMilliVolts(analogInPin);
       delay(1);
     }
     zeroCurrentVoltage = (sum/10.0);
